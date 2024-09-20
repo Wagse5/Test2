@@ -17,7 +17,22 @@ export default function Login() {
 
     try {
       if (isLogin) {
-        // Login logic (unchanged)
+        // Login
+        console.log('Attempting login with:', { email, password });
+        const result = await signIn('credentials', {
+          redirect: false,
+          email,
+          password,
+        });
+        console.log('Login result:', result);
+
+        if (result.ok) {
+          console.log('Login successful, redirecting to todo page');
+          router.push('/todo');  // Make sure you have a /todo page
+        } else {
+          console.error('Login failed:', result.error);
+          setError('Invalid email or password. Please try again.');
+        }
       } else {
         // Signup
         console.log('Attempting signup with:', { name, email, password });
@@ -39,8 +54,8 @@ export default function Login() {
             password,
           });
           if (result.ok) {
-            console.log('Auto-login successful, redirecting to home');
-            router.push('/');
+            console.log('Auto-login successful, redirecting to todo page');
+            router.push('/todo');  // Make sure you have a /todo page
           } else {
             console.error('Auto-login failed:', result.error);
             setError('Signup successful, but auto-login failed. Please try logging in manually.');

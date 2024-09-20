@@ -36,7 +36,6 @@ export default NextAuth({
   },
   pages: {
     signIn: '/login',
-    error: '/login', // Redirect to login page on error
   },
   debug: process.env.NODE_ENV === 'development',
 });
