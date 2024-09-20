@@ -18,7 +18,7 @@ export default function Home() {
 
   return (
     <div className={styles.container}>
-      <h1 className={styles.title}>PM tries to code</h1>
+      <h1 className={styles.title}>Test2 Todo List</h1>
       <div className={styles.inputContainer}>
         <input
           type="text"
