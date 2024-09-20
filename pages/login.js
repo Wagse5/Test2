@@ -18,6 +18,7 @@ export default function Login() {
       router.push('/');
     } else {
       // Handle error
+      console.error('Login failed');
     }
   };
 

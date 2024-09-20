@@ -1,42 +1,29 @@
-import { useState } from 'react';
-import styles from '../styles/Home.module.css';
+import { useSession, signIn } from 'next-auth/react'
+import { useEffect } from 'react'
+import { useRouter } from 'next/router'
 
 export default function Home() {
-  const [todos, setTodos] = useState([]);
-  const [input, setInput] = useState('');
+  const { data: session, status } = useSession()
+  const router = useRouter()
 
-  const addTodo = () => {
-    if (input.trim()) {
-      setTodos([...todos, { id: Date.now(), text: input.trim() }]);
-      setInput('');
+  useEffect(() => {
+    if (status === 'unauthenticated') {
+      router.push('/login')
     }
-  };
+  }, [status, router])
 
-  const deleteTodo = (id) => {
-    setTodos(todos.filter(todo => todo.id !== id));
-  };
+  if (status === 'loading') {
+    return <p>Loading...</p>
+  }
+
+  if (!session) {
+    return null // This prevents any flash of content before redirect
+  }
 
   return (
-    <div className={styles.container}>
-      <h1 className={styles.title}>Test2 Todo List</h1>
-      <div className={styles.inputContainer}>
-        <input
-          type="text"
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          placeholder="Add a new todo"
-          className={styles.input}
-        />
-        <button onClick={addTodo} className={styles.addButton}>Add</button>
-      </div>
-      <ul className={styles.todoList}>
-        {todos.map(todo => (
-          <li key={todo.id} className={styles.todoItem}>
-            {todo.text}
-            <button onClick={() => deleteTodo(todo.id)} className={styles.deleteButton}>Delete</button>
-          </li>
-        ))}
-      </ul>
+    <div>
+      <h1>Welcome, {session.user.name || session.user.email}</h1>
+      {/* Add your main app content here */}
     </div>
-  );
+  )
 }
