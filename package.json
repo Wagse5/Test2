@@ -1,8 +1,7 @@
 {
-  "name": "pm-tries-to-code",
+  "name": "test2",
   "version": "1.0.0",
   "description": "A simple todo list app",
-  "main": "index.js",
   "scripts": {
     "dev": "next dev",
     "build": "next build",
