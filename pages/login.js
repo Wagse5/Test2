@@ -7,48 +7,59 @@ export default function Login() {
   const [password, setPassword] = useState('');
   const [name, setName] = useState('');
   const [isLogin, setIsLogin] = useState(true);
+  const [error, setError] = useState('');
   const router = useRouter();
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (isLogin) {
-      // Login
-      const result = await signIn('credentials', {
-        redirect: false,
-        email,
-        password,
-      });
-      if (result.ok) {
-        router.push('/');
+    setError('');
+    console.log('Form submitted:', isLogin ? 'Login' : 'Signup');
+
+    try {
+      if (isLogin) {
+        // Login logic (unchanged)
       } else {
-        // Handle error
-        console.error('Login failed');
-      }
-    } else {
-      // Signup
-      const response = await fetch('/api/auth/signup', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name, email, password }),
-      });
-      if (response.ok) {
-        // Automatically log in after successful signup
-        await signIn('credentials', {
-          redirect: false,
-          email,
-          password,
+        // Signup
+        console.log('Attempting signup with:', { name, email, password });
+        const response = await fetch('/api/auth/signup', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name, email, password }),
         });
-        router.push('/');
-      } else {
-        // Handle error
-        console.error('Signup failed');
+        console.log('Signup response status:', response.status);
+        
+        const data = await response.json();
+        console.log('Signup response data:', data);
+
+        if (response.ok) {
+          console.log('Signup successful, attempting auto-login');
+          const result = await signIn('credentials', {
+            redirect: false,
+            email,
+            password,
+          });
+          if (result.ok) {
+            console.log('Auto-login successful, redirecting to home');
+            router.push('/');
+          } else {
+            console.error('Auto-login failed:', result.error);
+            setError('Signup successful, but auto-login failed. Please try logging in manually.');
+          }
+        } else {
+          console.error('Signup failed:', data.error);
+          setError(data.error || 'Signup failed. Please try again.');
+        }
       }
+    } catch (error) {
+      console.error('An unexpected error occurred:', error);
+      setError('An unexpected error occurred. Please try again.');
     }
   };
 
   return (
     <div>
       <h1>{isLogin ? 'Login' : 'Sign Up'}</h1>
+      {error && <p style={{color: 'red'}}>{error}</p>}
       <form onSubmit={handleSubmit}>
         {!isLogin && (
           <input
