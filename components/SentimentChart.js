@@ -1,62 +1,91 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
+import { Chart as ChartJS, CategoryScale, LinearScale, PointElement, LineElement, Title, Tooltip, Legend, TimeScale, Filler } from 'chart.js';
 import { Line } from 'react-chartjs-2';
-import { Chart as ChartJS, CategoryScale, LinearScale, PointElement, LineElement, Title, Tooltip, Legend, TimeScale } from 'chart.js';
 import 'chartjs-adapter-date-fns';
-import { format, parseISO, startOfHour, startOfDay, startOfWeek, startOfMonth, startOfYear } from 'date-fns';
+import { format, parseISO, startOfHour, startOfDay, startOfWeek, startOfMonth, startOfYear, addHours, addDays, addWeeks, addMonths, addYears } from 'date-fns';
 
-ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Title, Tooltip, Legend, TimeScale);
+ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Title, Tooltip, Legend, TimeScale, Filler);
 
 const SentimentChart = ({ notes }) => {
-  const [timeFrame, setTimeFrame] = useState('daily');
-
-  const sentimentScores = {
-    'Positive': 1,
-    'Neutral': 0,
-    'Negative': -1
-  };
+  const [timeFrame, setTimeFrame] = useState('hourly');
+  const chartRef = useRef(null);
 
   const getStartOfPeriod = (date, period) => {
+    const parsedDate = parseISO(date);
     switch (period) {
-      case 'hourly': return startOfHour(date);
-      case 'daily': return startOfDay(date);
-      case 'weekly': return startOfWeek(date);
-      case 'monthly': return startOfMonth(date);
-      case 'yearly': return startOfYear(date);
-      default: return date;
+      case 'hourly': return startOfHour(parsedDate);
+      case 'daily': return startOfDay(parsedDate);
+      case 'weekly': return startOfWeek(parsedDate);
+      case 'monthly': return startOfMonth(parsedDate);
+      case 'yearly': return startOfYear(parsedDate);
+      default: return parsedDate;
     }
   };
 
-  const chartData = useMemo(() => {
-    const groupedData = notes
-      .filter(note => !note.isDone)
-      .reduce((acc, note) => {
-        const date = getStartOfPeriod(parseISO(note.createdAt), timeFrame);
-        if (!acc[date]) {
-          acc[date] = { sum: 0, count: 0 };
-        }
-        acc[date].sum += sentimentScores[note.sentiment];
-        acc[date].count += 1;
-        return acc;
-      }, {});
+  const getSentimentValue = (sentiment) => {
+    if (typeof sentiment === 'number') return sentiment;
+    return sentiment === 'Positive' ? 1 : sentiment === 'Negative' ? -1 : 0;
+  };
 
-    return Object.entries(groupedData)
-      .map(([date, { sum, count }]) => ({
-        x: new Date(date),
-        y: sum / count
-      }))
-      .sort((a, b) => a.x - b.x);
-  }, [notes, timeFrame]);
+  const processData = () => {
+    if (!notes || notes.length === 0) return { labels: [], data: [] };
 
-  const data = {
+    const groupedData = notes.reduce((acc, note) => {
+      if (!note.createdAt) return acc;
+      const date = getStartOfPeriod(note.createdAt, timeFrame).toISOString();
+      if (!acc[date]) {
+        acc[date] = { sum: 0, count: 0 };
+      }
+      acc[date].sum += getSentimentValue(note.sentiment);
+      acc[date].count += 1;
+      return acc;
+    }, {});
+
+    let sortedDates = Object.keys(groupedData).sort((a, b) => new Date(a) - new Date(b));
+    
+    // If there's only one data point, add dummy points before and after
+    if (sortedDates.length === 1) {
+      const singleDate = new Date(sortedDates[0]);
+      const addPeriod = {
+        hourly: addHours,
+        daily: addDays,
+        weekly: addWeeks,
+        monthly: addMonths,
+        yearly: addYears
+      }[timeFrame];
+
+      const beforeDate = addPeriod(singleDate, -1).toISOString();
+      const afterDate = addPeriod(singleDate, 1).toISOString();
+      
+      groupedData[beforeDate] = { sum: groupedData[sortedDates[0]].sum, count: 1 };
+      groupedData[afterDate] = { sum: groupedData[sortedDates[0]].sum, count: 1 };
+      sortedDates = [beforeDate, ...sortedDates, afterDate];
+    }
+
+    const data = sortedDates.map(date => ({
+      x: new Date(date),
+      y: groupedData[date].sum / groupedData[date].count
+    }));
+
+    return { labels: sortedDates, data };
+  };
+
+  const { labels, data } = processData();
+
+  const chartData = {
+    labels,
     datasets: [
       {
         label: 'Average Sentiment',
-        data: chartData,
-        fill: false,
+        data,
         borderColor: 'rgb(75, 192, 192)',
-        tension: 0.1
-      }
-    ]
+        backgroundColor: 'rgba(75, 192, 192, 0.2)',
+        pointRadius: 4,
+        pointHoverRadius: 6,
+        fill: true,
+        tension: 0.6,
+      },
+    ],
   };
 
   const options = {
@@ -83,29 +112,23 @@ const SentimentChart = ({ notes }) => {
         },
         min: -1,
         max: 1,
-        ticks: {
-          callback: function(value) {
-            if (value === -1) return '😔';
-            if (value === 0) return '😐';
-            if (value === 1) return '😊';
-            return '';
-          }
-        }
       }
     },
     plugins: {
-      tooltip: {
-        callbacks: {
-          label: function(context) {
-            const label = context.dataset.label || '';
-            if (label) {
-              const sentiment = context.parsed.y > 0.33 ? '😊' : 
-                                context.parsed.y < -0.33 ? '😔' : '😐';
-              return `${label}: ${sentiment} (${context.parsed.y.toFixed(2)})`;
-            }
-            return '';
-          }
-        }
+      legend: {
+        position: 'top',
+      },
+      title: {
+        display: true,
+        text: 'Sentiment Over Time'
+      },
+      filler: {
+        propagate: true
+      }
+    },
+    elements: {
+      line: {
+        tension: 0.6
       }
     }
   };
@@ -133,7 +156,7 @@ const SentimentChart = ({ notes }) => {
         ))}
       </div>
       <div style={{ height: '400px', width: '100%' }}>
-        <Line data={data} options={options} />
+        <Line data={chartData} options={options} />
       </div>
     </div>
   );

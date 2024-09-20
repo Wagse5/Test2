@@ -50,6 +50,37 @@ const getSentimentEmoji = (sentiment) => {
   }
 };
 
+const FloatingActionButton = ({ onClick }) => (
+  <button
+    onClick={onClick}
+    style={{
+      position: 'fixed',
+      bottom: '2rem',
+      right: '2rem',
+      width: '60px',
+      height: '60px',
+      borderRadius: '50%',
+      backgroundColor: '#4CAF50',
+      color: 'white',
+      fontSize: '24px',
+      border: 'none',
+      boxShadow: '0 2px 5px rgba(0,0,0,0.2)',
+      cursor: 'pointer',
+      display: 'flex',
+      justifyContent: 'center',
+      alignItems: 'center',
+      transition: 'background-color 0.3s, transform 0.3s',
+      zIndex: 1000,
+    }}
+    onMouseEnter={(e) => e.target.style.backgroundColor = '#45a049'}
+    onMouseLeave={(e) => e.target.style.backgroundColor = '#4CAF50'}
+    onMouseDown={(e) => e.target.style.transform = 'scale(0.95)'}
+    onMouseUp={(e) => e.target.style.transform = 'scale(1)'}
+  >
+    +
+  </button>
+);
+
 export default function Todo() {
   const { data: session, status } = useSession();
   const router = useRouter();
@@ -58,6 +89,21 @@ export default function Todo() {
   const [error, setError] = useState('');
   const [overallSentiment, setOverallSentiment] = useState('');
   const [activeTab, setActiveTab] = useState('Present Sentiment');
+  const [isAddingNote, setIsAddingNote] = useState(false);
+  const [tabs, setTabs] = useState(['Present Sentiment', 'Active Notes', 'How You\'ve Been', 'Archived Notes']);
+  const [streak, setStreak] = useState(0);
+  const [accomplishmentMessage, setAccomplishmentMessage] = useState('');
+
+  useEffect(() => {
+    const storedTabs = localStorage.getItem('tabOrder');
+    if (storedTabs) {
+      setTabs(JSON.parse(storedTabs));
+    }
+  }, []);
+
+  useEffect(() => {
+    localStorage.setItem('tabOrder', JSON.stringify(tabs));
+  }, [tabs]);
 
   useEffect(() => {
     if (session) {
@@ -66,11 +112,10 @@ export default function Todo() {
   }, [session]);
 
   async function fetchNotes() {
-    console.log('Fetching notes...');
     try {
       const res = await fetch('/api/notes');
       const data = await res.json();
-      console.log('Fetch response:', JSON.stringify(data));
+      console.log('Fetched notes:', data);
       if (res.ok) {
         setNotes(data);
         updateOverallSentiment(data.filter(note => !note.isDone));
@@ -84,7 +129,7 @@ export default function Todo() {
     }
   }
 
-  async function addNote(e) {
+  const addNote = async (e) => {
     e.preventDefault();
     setError('');
     console.log('Adding note...');
@@ -99,6 +144,8 @@ export default function Todo() {
       if (res.ok) {
         setNewNote('');
         fetchNotes();
+        updateStreak();
+        setIsAddingNote(false);
       } else {
         console.error('Failed to add note:', data.error);
         setError(data.error || 'Failed to add note');
@@ -107,7 +154,29 @@ export default function Todo() {
       console.error('Error adding note:', error);
       setError('Error adding note');
     }
-  }
+  };
+
+  const updateStreak = async () => {
+    try {
+      const res = await fetch('/api/updateStreak', {
+        method: 'POST',
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setStreak(data.streak);
+        if (data.streakIncreased) {
+          showAccomplishmentMessage(data.streak);
+        }
+      }
+    } catch (error) {
+      console.error('Error updating streak:', error);
+    }
+  };
+
+  const showAccomplishmentMessage = (streak) => {
+    setAccomplishmentMessage(`Congratulations! You've maintained your streak for ${streak} days!`);
+    setTimeout(() => setAccomplishmentMessage(''), 5000);
+  };
 
   async function toggleNoteDone(id, currentStatus) {
     setError('');
@@ -262,12 +331,80 @@ export default function Todo() {
 
   return (
     <Layout>
+      {/* Streak display */}
+      <div style={{ 
+        position: 'fixed', 
+        top: '20px', 
+        right: '20px', 
+        backgroundColor: '#4CAF50', 
+        color: 'white', 
+        padding: '10px', 
+        borderRadius: '5px',
+        zIndex: 1000
+      }}>
+        Current Streak: {streak} days
+      </div>
+
+      {/* Accomplishment message */}
+      {accomplishmentMessage && (
+        <div style={{ 
+          position: 'fixed', 
+          bottom: '20px', 
+          right: '20px', 
+          backgroundColor: '#FFC107', 
+          color: 'black', 
+          padding: '10px', 
+          borderRadius: '5px',
+          zIndex: 1000
+        }}>
+          {accomplishmentMessage}
+        </div>
+      )}
+
       <Tabs 
         activeTab={activeTab} 
         setActiveTab={setActiveTab} 
-        tabs={['Present Sentiment', 'Active Notes', 'How You\'ve Been', 'Archived Notes']} 
+        tabs={tabs}
+        setTabs={setTabs}
       />
       {renderActiveTab()}
+      {isAddingNote ? (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          backgroundColor: 'rgba(0,0,0,0.5)',
+          display: 'flex',
+          justifyContent: 'center',
+          alignItems: 'center',
+          zIndex: 1001,
+        }}>
+          <form onSubmit={addNote} style={{ 
+            backgroundColor: 'white', 
+            padding: '2rem', 
+            borderRadius: '10px',
+            width: '80%',
+            maxWidth: '500px'
+          }}>
+            <input
+              type="text"
+              value={newNote}
+              onChange={(e) => setNewNote(e.target.value)}
+              placeholder="Enter a new note"
+              required
+              style={{...inputStyle, width: '100%', marginBottom: '1rem'}}
+            />
+            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+              <button type="submit" style={buttonStyle}>Add Note</button>
+              <button onClick={() => setIsAddingNote(false)} style={{...buttonStyle, backgroundColor: '#f44336'}}>Cancel</button>
+            </div>
+          </form>
+        </div>
+      ) : (
+        <FloatingActionButton onClick={() => setIsAddingNote(true)} />
+      )}
     </Layout>
   );
 }
