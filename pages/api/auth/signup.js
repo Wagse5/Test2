@@ -43,6 +43,7 @@ export default async function handler(req, res) {
     res.status(201).json({ message: 'User created successfully' });
   } catch (error) {
     console.error('Error in signup process:', error);
-    res.status(500).json({ error: 'Something went wrong' });
+    // Send more detailed error information
+    res.status(500).json({ error: 'Something went wrong', details: error.message, stack: error.stack });
   }
 }
