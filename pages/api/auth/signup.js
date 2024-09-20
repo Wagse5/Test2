@@ -11,6 +11,7 @@ export default async function handler(req, res) {
 
   try {
     console.log('Connecting to database');
+    console.log('MONGODB_URI:', process.env.MONGODB_URI); // Be careful not to log this in production
     await dbConnect();
     console.log('Database connected');
 
@@ -43,7 +44,11 @@ export default async function handler(req, res) {
     res.status(201).json({ message: 'User created successfully' });
   } catch (error) {
     console.error('Error in signup process:', error);
-    // Send more detailed error information
-    res.status(500).json({ error: 'Something went wrong', details: error.message, stack: error.stack });
+    res.status(500).json({ 
+      error: 'Something went wrong', 
+      details: error.message, 
+      stack: error.stack,
+      name: error.name
+    });
   }
 }
