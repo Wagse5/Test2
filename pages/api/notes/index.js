@@ -1,6 +1,6 @@
+import { getSession } from 'next-auth/react';
 import dbConnect from '../../../lib/mongodb';
 import Note from '../../../models/Note';
-import { getSession } from 'next-auth/react';
 
 export default async function handler(req, res) {
   const session = await getSession({ req });
