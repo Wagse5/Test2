@@ -1,29 +1,35 @@
-import { useSession, signIn } from 'next-auth/react'
-import { useEffect } from 'react'
-import { useRouter } from 'next/router'
+import { useSession } from 'next-auth/react';
+import { useRouter } from 'next/router';
+import Layout from '../components/Layout';
+import Link from 'next/link';
 
 export default function Home() {
-  const { data: session, status } = useSession()
-  const router = useRouter()
-
-  useEffect(() => {
-    if (status === 'unauthenticated') {
-      router.push('/login')
-    }
-  }, [status, router])
+  const { data: session, status } = useSession();
+  const router = useRouter();
 
   if (status === 'loading') {
-    return <p>Loading...</p>
+    return <p>Loading...</p>;
   }
 
-  if (!session) {
-    return null // This prevents any flash of content before redirect
+  if (session) {
+    router.push('/todo');
+    return null;
   }
 
   return (
-    <div>
-      <h1>Welcome, {session.user.name || session.user.email}</h1>
-      {/* Add your main app content here */}
-    </div>
-  )
+    <Layout>
+      <div style={{ textAlign: 'center', marginTop: '50px' }}>
+        <h1>Welcome to the Sentiment Todo App</h1>
+        <p>Track your tasks and analyze your mood!</p>
+        <div style={{ marginTop: '20px' }}>
+          <Link href="/login">
+            <a style={{ padding: '10px 20px', backgroundColor: '#007bff', color: 'white', textDecoration: 'none', borderRadius: '5px', marginRight: '10px' }}>Log In</a>
+          </Link>
+          <Link href="/signup">
+            <a style={{ padding: '10px 20px', backgroundColor: '#28a745', color: 'white', textDecoration: 'none', borderRadius: '5px' }}>Sign Up</a>
+          </Link>
+        </div>
+      </div>
+    </Layout>
+  );
 }
